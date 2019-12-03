@@ -27,9 +27,12 @@ import org.apache.commons.logging.LogFactory;
 import org.quartz.*;
 import org.quartz.impl.matchers.GroupMatcher;
 
+import org.springframework.cloud.deployer.spi.core.AppDefinition;
+import org.springframework.cloud.deployer.spi.task.TaskLauncher;
 import org.springframework.cloud.scheduler.spi.core.*;
 import org.springframework.cloud.scheduler.spi.core.Scheduler;
 import org.springframework.cloud.scheduler.spi.core.SchedulerException;
+import org.springframework.core.io.Resource;
 import org.springframework.util.Assert;
 
 /**
@@ -39,6 +42,8 @@ import org.springframework.util.Assert;
  */
 public class QuartzScheduler implements Scheduler {
 
+	private static final String JOB_DATA_TASK_LAUNCHER = "taskLauncher";
+
 	private static final String JOB_DATA_TASK_NAME_KEY = "taskName";
 
 	private static final String JOB_DATA_TASK_DEPLOYMENT_PROPERTIES_KEY = "taskDeploymentProperties";
@@ -46,17 +51,23 @@ public class QuartzScheduler implements Scheduler {
 	private static final String JOB_DATA_TASK_COMMAND_LINE_ARGS_KEY = "commandLineArgs";
 
 	private static final Log logger = LogFactory.getLog(QuartzScheduler.class);
+	private static final String JOB_DATA_TASK_APP_DEFINITION = "appDefinition";
+	private static final String JOB_DATA_TASK_RESOURCE = "resource";
 
 	private final org.quartz.Scheduler scheduler;
 
 	private final QuartzSchedulerProperties schedulerProperties;
 
+	private final TaskLauncher taskLauncher;
+
 	public QuartzScheduler(
+			TaskLauncher taskLauncher,
 			org.quartz.Scheduler scheduler,
 			QuartzSchedulerProperties schedulerProperties) {
 		Assert.notNull(scheduler, "scheduler must not be null");
 		Assert.notNull(schedulerProperties, "schedulerProperties must not be null");
 
+		this.taskLauncher = taskLauncher;
 		this.scheduler = scheduler;
 		this.schedulerProperties = schedulerProperties;
 	}
@@ -81,7 +92,8 @@ public class QuartzScheduler implements Scheduler {
 		}
 
 		scheduleTask(appName, scheduleName, cronExpression, scheduleRequest.getDeploymentProperties(),
-				scheduleRequest.getCommandlineArguments());
+				scheduleRequest.getCommandlineArguments(), scheduleRequest.getDefinition(),
+				scheduleRequest.getResource());
 	}
 
 	@Override
@@ -157,7 +169,8 @@ public class QuartzScheduler implements Scheduler {
 	 */
 	private void scheduleTask(
 			String appName, String scheduleName, String expression,
-			Map<String, String> taskDeploymentProperties, List<String> commandLineArgs) {
+			Map<String, String> taskDeploymentProperties, List<String> commandLineArgs,
+			AppDefinition appDefinition, Resource resource) {
 		logger.debug(("Scheduling Task: " + appName));
 		JobDetail jobDetail = JobBuilder.newJob()
 				.ofType(QuartsSchedulerJob.class)
@@ -165,9 +178,12 @@ public class QuartzScheduler implements Scheduler {
 				.withIdentity(scheduleName, appName)
 				.build();
 
+		jobDetail.getJobDataMap().put(JOB_DATA_TASK_LAUNCHER, taskLauncher);
 		jobDetail.getJobDataMap().put(JOB_DATA_TASK_NAME_KEY, appName);
 		jobDetail.getJobDataMap().put(JOB_DATA_TASK_DEPLOYMENT_PROPERTIES_KEY, taskDeploymentProperties);
 		jobDetail.getJobDataMap().put(JOB_DATA_TASK_COMMAND_LINE_ARGS_KEY, commandLineArgs);
+		jobDetail.getJobDataMap().put(JOB_DATA_TASK_APP_DEFINITION, appDefinition);
+		jobDetail.getJobDataMap().put(JOB_DATA_TASK_RESOURCE, resource);
 
 		CronTrigger trigger = TriggerBuilder.newTrigger()
 				.forJob(jobDetail)
