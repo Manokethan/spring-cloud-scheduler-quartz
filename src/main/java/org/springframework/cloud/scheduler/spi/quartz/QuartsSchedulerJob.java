@@ -23,26 +23,27 @@ import org.quartz.JobExecutionContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cloud.dataflow.server.service.TaskService;
+import org.springframework.cloud.deployer.spi.core.AppDefinition;
+import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
+import org.springframework.cloud.deployer.spi.task.TaskLauncher;
+import org.springframework.core.io.Resource;
 import org.springframework.scheduling.quartz.QuartzJobBean;
 
 public class QuartsSchedulerJob extends QuartzJobBean {
 
 	private static final Logger logger = LoggerFactory.getLogger(QuartsSchedulerJob.class);
 
-	private TaskService taskService;
+	private TaskLauncher taskLauncher;
+
+	private AppDefinition appDefinition;
+
+	private Resource resource;
 
 	private String taskName;
 
 	private Map<String, String> taskDeploymentProperties;
 
 	private List<String> commandLineArgs;
-
-	@Autowired
-	public void setTaskService(TaskService taskService) {
-		this.taskService = taskService;
-	}
 
 	public void setTaskName(String taskName) {
 		this.taskName = taskName;
@@ -56,9 +57,23 @@ public class QuartsSchedulerJob extends QuartzJobBean {
 		this.commandLineArgs = commandLineArgs;
 	}
 
+	public void setTaskLauncher(TaskLauncher taskLauncher) {
+		this.taskLauncher = taskLauncher;
+	}
+
+	public void setAppDefinition(AppDefinition appDefinition) {
+		this.appDefinition = appDefinition;
+	}
+
+	public void setResource(Resource resource) {
+		this.resource = resource;
+	}
+
 	@Override
 	protected void executeInternal(JobExecutionContext jobExecutionContext) {
 		logger.debug("launching scheduled quartz job {}", taskName);
-		taskService.executeTask(taskName, taskDeploymentProperties, commandLineArgs);
+		AppDeploymentRequest appDeploymentRequest = new AppDeploymentRequest(appDefinition,	resource,
+				taskDeploymentProperties);
+		taskLauncher.launch(appDeploymentRequest);
 	}
 }
