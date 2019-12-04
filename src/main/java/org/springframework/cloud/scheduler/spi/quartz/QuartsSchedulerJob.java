@@ -16,17 +16,14 @@
 
 package org.springframework.cloud.scheduler.spi.quartz;
 
-import java.util.List;
-import java.util.Map;
-
 import org.quartz.JobExecutionContext;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.springframework.cloud.deployer.spi.core.AppDefinition;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.cloud.deployer.spi.task.TaskLauncher;
-import org.springframework.core.io.Resource;
+import org.springframework.cloud.scheduler.spi.core.ScheduleRequest;
 import org.springframework.scheduling.quartz.QuartzJobBean;
 
 public class QuartsSchedulerJob extends QuartzJobBean {
@@ -35,45 +32,32 @@ public class QuartsSchedulerJob extends QuartzJobBean {
 
 	private TaskLauncher taskLauncher;
 
-	private AppDefinition appDefinition;
-
-	private Resource resource;
-
 	private String taskName;
 
-	private Map<String, String> taskDeploymentProperties;
-
-	private List<String> commandLineArgs;
+	private ScheduleRequest scheduleRequest;
 
 	public void setTaskName(String taskName) {
 		this.taskName = taskName;
-	}
-
-	public void setTaskDeploymentProperties(Map<String, String> taskDeploymentProperties) {
-		this.taskDeploymentProperties = taskDeploymentProperties;
-	}
-
-	public void setCommandLineArgs(List<String> commandLineArgs) {
-		this.commandLineArgs = commandLineArgs;
 	}
 
 	public void setTaskLauncher(TaskLauncher taskLauncher) {
 		this.taskLauncher = taskLauncher;
 	}
 
-	public void setAppDefinition(AppDefinition appDefinition) {
-		this.appDefinition = appDefinition;
-	}
-
-	public void setResource(Resource resource) {
-		this.resource = resource;
+	public void setScheduleRequest(ScheduleRequest scheduleRequest) {
+		this.scheduleRequest = scheduleRequest;
 	}
 
 	@Override
 	protected void executeInternal(JobExecutionContext jobExecutionContext) {
 		logger.debug("launching scheduled quartz job {}", taskName);
-		AppDeploymentRequest appDeploymentRequest = new AppDeploymentRequest(appDefinition,	resource,
-				taskDeploymentProperties);
+
+		AppDeploymentRequest appDeploymentRequest = new AppDeploymentRequest(
+				scheduleRequest.getDefinition(),
+				scheduleRequest.getResource(),
+				scheduleRequest.getSchedulerProperties(),
+				scheduleRequest.getCommandlineArguments());
+
 		taskLauncher.launch(appDeploymentRequest);
 	}
 }

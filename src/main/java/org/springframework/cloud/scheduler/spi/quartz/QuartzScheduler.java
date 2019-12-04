@@ -17,22 +17,21 @@
 package org.springframework.cloud.scheduler.spi.quartz;
 
 import java.text.ParseException;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
 import org.quartz.*;
 import org.quartz.impl.matchers.GroupMatcher;
 
-import org.springframework.cloud.deployer.spi.core.AppDefinition;
 import org.springframework.cloud.deployer.spi.task.TaskLauncher;
 import org.springframework.cloud.scheduler.spi.core.*;
 import org.springframework.cloud.scheduler.spi.core.Scheduler;
 import org.springframework.cloud.scheduler.spi.core.SchedulerException;
-import org.springframework.core.io.Resource;
 import org.springframework.util.Assert;
 
 /**
@@ -46,13 +45,9 @@ public class QuartzScheduler implements Scheduler {
 
 	private static final String JOB_DATA_TASK_NAME_KEY = "taskName";
 
-	private static final String JOB_DATA_TASK_DEPLOYMENT_PROPERTIES_KEY = "taskDeploymentProperties";
-
-	private static final String JOB_DATA_TASK_COMMAND_LINE_ARGS_KEY = "commandLineArgs";
+	private static final String JOB_DATA_TASK_SCHEDULE_REQUEST = "scheduleRequest";
 
 	private static final Log logger = LogFactory.getLog(QuartzScheduler.class);
-	private static final String JOB_DATA_TASK_APP_DEFINITION = "appDefinition";
-	private static final String JOB_DATA_TASK_RESOURCE = "resource";
 
 	private final org.quartz.Scheduler scheduler;
 
@@ -91,9 +86,7 @@ public class QuartzScheduler implements Scheduler {
 			throw new IllegalArgumentException("Cron Expression is invalid: " + pe.getMessage());
 		}
 
-		scheduleTask(appName, scheduleName, cronExpression, scheduleRequest.getDeploymentProperties(),
-				scheduleRequest.getCommandlineArguments(), scheduleRequest.getDefinition(),
-				scheduleRequest.getResource());
+		scheduleTask(appName, scheduleName, cronExpression, scheduleRequest);
 	}
 
 	@Override
@@ -164,13 +157,10 @@ public class QuartzScheduler implements Scheduler {
 	 * @param appName The name of the task app to be scheduled.
 	 * @param scheduleName the name of the schedule.
 	 * @param expression the cron expression.
-	 * @param taskDeploymentProperties optional task properties before launching the task.
-	 * @param commandLineArgs optional task arguments before launching the task.
+	 * @param scheduleRequest ScheduleRequest
 	 */
 	private void scheduleTask(
-			String appName, String scheduleName, String expression,
-			Map<String, String> taskDeploymentProperties, List<String> commandLineArgs,
-			AppDefinition appDefinition, Resource resource) {
+			String appName, String scheduleName, String expression, ScheduleRequest scheduleRequest) {
 		logger.debug(("Scheduling Task: " + appName));
 		JobDetail jobDetail = JobBuilder.newJob()
 				.ofType(QuartsSchedulerJob.class)
@@ -180,10 +170,7 @@ public class QuartzScheduler implements Scheduler {
 
 		jobDetail.getJobDataMap().put(JOB_DATA_TASK_LAUNCHER, taskLauncher);
 		jobDetail.getJobDataMap().put(JOB_DATA_TASK_NAME_KEY, appName);
-		jobDetail.getJobDataMap().put(JOB_DATA_TASK_DEPLOYMENT_PROPERTIES_KEY, taskDeploymentProperties);
-		jobDetail.getJobDataMap().put(JOB_DATA_TASK_COMMAND_LINE_ARGS_KEY, commandLineArgs);
-		jobDetail.getJobDataMap().put(JOB_DATA_TASK_APP_DEFINITION, appDefinition);
-		jobDetail.getJobDataMap().put(JOB_DATA_TASK_RESOURCE, resource);
+		jobDetail.getJobDataMap().put(JOB_DATA_TASK_SCHEDULE_REQUEST, scheduleRequest);
 
 		CronTrigger trigger = TriggerBuilder.newTrigger()
 				.forJob(jobDetail)
