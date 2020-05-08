@@ -16,6 +16,7 @@
 
 package org.springframework.cloud.scheduler.spi.quartz;
 
+import java.io.IOException;
 import java.text.ParseException;
 
 import java.util.ArrayList;
@@ -26,12 +27,11 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import org.quartz.*;
+import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
 import org.quartz.impl.matchers.GroupMatcher;
 
-import org.springframework.cloud.deployer.spi.task.TaskLauncher;
-import org.springframework.cloud.scheduler.spi.core.*;
-import org.springframework.cloud.scheduler.spi.core.Scheduler;
-import org.springframework.cloud.scheduler.spi.core.SchedulerException;
+import org.springframework.cloud.deployer.spi.scheduler.*;
 import org.springframework.util.Assert;
 
 /**
@@ -39,32 +39,31 @@ import org.springframework.util.Assert;
  *
  * @author Manokethan Parameswaran
  */
-public class QuartzScheduler implements Scheduler {
-
-	private static final String JOB_DATA_TASK_LAUNCHER = "taskLauncher";
+public class QuartzScheduler implements org.springframework.cloud.deployer.spi.scheduler.Scheduler {
 
 	private static final String JOB_DATA_TASK_NAME_KEY = "taskName";
-
-	private static final String JOB_DATA_TASK_SCHEDULE_REQUEST = "scheduleRequest";
-
+	private static final String JOB_DATA_DEFINITION_NAME = "definitionName";
+	private static final String JOB_DATA_DEFINITION_PROPERTIES = "definitionProperties";
+	private static final String JOB_DATA_RESOURCE_DESCRIPTION = "resourceDescription";
+	private static final String JOB_DATA_RESOURCE_FILENAME = "resourceFilename";
+	private static final String JOB_DATA_RESOURCE_FILE = "resourceFile";
+	private static final String JOB_DATA_RESOURCE_CONTENT_LENGTH = "resourceContentLength";
+	private static final String JOB_DATA_RESOURCE_EXISTS = "resourceExists";
+	private static final String JOB_DATA_RESOURCE_URI = "resourceURI";
+	private static final String JOB_DATA_RESOURCE_URL = "resourceURL";
+	private static final String JOB_DATA_RESOURCE_IS_OPEN = "resourceIsOpen";
+	private static final String JOB_DATA_RESOURCE_IS_READABLE = "resourceIsReadable";
+	private static final String JOB_DATA_RESOURCE_LAST_MODIFIED = "resourceLastModified";
+	private static final String JOB_DATA_DEPLOYMENT_PROPERTIES = "deploymentProperties";
+	private static final String JOB_DATA_COMMAND_LINE_ARGUMENTS = "commandlineArguments";
 	private static final Log logger = LogFactory.getLog(QuartzScheduler.class);
-
 	private final org.quartz.Scheduler scheduler;
 
-	private final QuartzSchedulerProperties schedulerProperties;
-
-	private final TaskLauncher taskLauncher;
-
 	public QuartzScheduler(
-			TaskLauncher taskLauncher,
-			org.quartz.Scheduler scheduler,
-			QuartzSchedulerProperties schedulerProperties) {
+			org.quartz.Scheduler scheduler) {
 		Assert.notNull(scheduler, "scheduler must not be null");
-		Assert.notNull(schedulerProperties, "schedulerProperties must not be null");
 
-		this.taskLauncher = taskLauncher;
 		this.scheduler = scheduler;
-		this.schedulerProperties = schedulerProperties;
 	}
 
 	@Override
@@ -130,9 +129,13 @@ public class QuartzScheduler implements Scheduler {
 			}
 		}
 		catch (org.quartz.SchedulerException e) {
-			throw new SchedulerException(
-					"An error occurred while generating schedules list for the task " + taskDefinitionName,
-					e);
+			try {
+				throw new SchedulerException(
+						"An error occurred while generating schedules list for the task " + taskDefinitionName,
+						e);
+			} catch (SchedulerException ex) {
+				ex.printStackTrace();
+			}
 		}
 		return result;
 	}
@@ -146,7 +149,11 @@ public class QuartzScheduler implements Scheduler {
 			}
 		}
 		catch (org.quartz.SchedulerException e) {
-			throw new SchedulerException("An error occurred while generating schedules list", e);
+			try {
+				throw new SchedulerException("An error occurred while generating schedules list", e);
+			} catch (SchedulerException ex) {
+				ex.printStackTrace();
+			}
 		}
 		return result;
 	}
@@ -159,8 +166,7 @@ public class QuartzScheduler implements Scheduler {
 	 * @param expression the cron expression.
 	 * @param scheduleRequest ScheduleRequest
 	 */
-	private void scheduleTask(
-			String appName, String scheduleName, String expression, ScheduleRequest scheduleRequest) {
+	private void scheduleTask(String appName, String scheduleName, String expression, ScheduleRequest scheduleRequest) {
 		logger.debug(("Scheduling Task: " + appName));
 		JobDetail jobDetail = JobBuilder.newJob()
 				.ofType(QuartsSchedulerJob.class)
@@ -168,9 +174,43 @@ public class QuartzScheduler implements Scheduler {
 				.withIdentity(scheduleName, appName)
 				.build();
 
-		jobDetail.getJobDataMap().put(JOB_DATA_TASK_LAUNCHER, taskLauncher);
 		jobDetail.getJobDataMap().put(JOB_DATA_TASK_NAME_KEY, appName);
-		jobDetail.getJobDataMap().put(JOB_DATA_TASK_SCHEDULE_REQUEST, scheduleRequest);
+
+		jobDetail.getJobDataMap().put(JOB_DATA_DEFINITION_NAME, scheduleRequest.getDefinition().getName());
+		jobDetail.getJobDataMap().put(JOB_DATA_DEFINITION_PROPERTIES, scheduleRequest.getDefinition().getProperties());
+
+		jobDetail.getJobDataMap().put(JOB_DATA_RESOURCE_DESCRIPTION, scheduleRequest.getResource().getDescription());
+		jobDetail.getJobDataMap().put(JOB_DATA_RESOURCE_FILENAME, scheduleRequest.getResource().getFilename());
+		try {
+			jobDetail.getJobDataMap().put(JOB_DATA_RESOURCE_FILE, scheduleRequest.getResource().getFile());
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		try {
+			jobDetail.getJobDataMap().put(JOB_DATA_RESOURCE_CONTENT_LENGTH, scheduleRequest.getResource().contentLength());
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		jobDetail.getJobDataMap().put(JOB_DATA_RESOURCE_EXISTS, scheduleRequest.getResource().exists());
+		try {
+			jobDetail.getJobDataMap().put(JOB_DATA_RESOURCE_URI, scheduleRequest.getResource().getURI());
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		try {
+			jobDetail.getJobDataMap().put(JOB_DATA_RESOURCE_URL, scheduleRequest.getResource().getURL());
+		} catch (IOException e) {
+		}
+		jobDetail.getJobDataMap().put(JOB_DATA_RESOURCE_IS_OPEN, scheduleRequest.getResource().isOpen());
+		jobDetail.getJobDataMap().put(JOB_DATA_RESOURCE_IS_READABLE, scheduleRequest.getResource().isReadable());
+		try {
+			jobDetail.getJobDataMap().put(JOB_DATA_RESOURCE_LAST_MODIFIED, scheduleRequest.getResource().lastModified());
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		jobDetail.getJobDataMap().put(JOB_DATA_DEPLOYMENT_PROPERTIES, scheduleRequest.getDeploymentProperties());
+		jobDetail.getJobDataMap().put(JOB_DATA_COMMAND_LINE_ARGUMENTS, scheduleRequest.getCommandlineArguments());
 
 		CronTrigger trigger = TriggerBuilder.newTrigger()
 				.forJob(jobDetail)
@@ -192,7 +232,7 @@ public class QuartzScheduler implements Scheduler {
 	 * @param scheduleName the name of the schedule to search.
 	 * @return The job associated with the schedule.
 	 */
-	private JobKey getJobKey(String scheduleName) {
+	private JobKey getJobKey(String scheduleName) throws SchedulerException {
 		try {
 			for (String groupName : scheduler.getJobGroupNames()) {
 				for (JobKey jobKey : scheduler.getJobKeys(GroupMatcher.jobGroupEquals(groupName))) {
