@@ -19,7 +19,8 @@
 
     <properties>
         <java.version>1.8</java.version>
-        <spring-cloud-scheduler-spi.version>1.0.1.RELEASE</spring-cloud-scheduler-spi.version>
+        <spring-cloud-scheduler-spi.version>2.1.0.RELEASE</spring-cloud-scheduler-spi.version>
+        <spring-cloud-scheduler-spi-test.version>2.0.0.RELEASE</spring-cloud-scheduler-spi-test.version>
         <quartz.version>2.3.0</quartz.version>
     </properties>
 
@@ -39,7 +40,7 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-scheduler-spi</artifactId>
+            <artifactId>spring-cloud-deployer-spi</artifactId>
             <version>${spring-cloud-scheduler-spi.version}</version>
         </dependency>
         <dependency>
@@ -50,22 +51,53 @@
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-scheduler-spi-test</artifactId>
-            <version>${spring-cloud-scheduler-spi.version}</version>
+            <version>${spring-cloud-scheduler-spi-test.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-dataflow-server-core</artifactId>
-            <version>1.7.0.RELEASE</version>
+            <version>2.3.0.RELEASE</version>
         </dependency>
         <dependency>
             <groupId>org.quartz-scheduler</groupId>
             <artifactId>quartz</artifactId>
-            <version>2.3.0</version>
+            <version>2.3.2</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bikeemotion</groupId>
+            <artifactId>quartz-hazelcast-jobstore</artifactId>
+            <version>1.0.4</version>
+            <exclusions>
+                <exclusion>
+                    <artifactId>hazelcast-client</artifactId>
+                    <groupId>com.hazelcast</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>hazelcast</artifactId>
+                    <groupId>com.hazelcast</groupId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.hazelcast</groupId>
+            <artifactId>hazelcast-client</artifactId>
+            <version>3.12.7</version>
+            <exclusions>
+                <exclusion>
+                    <artifactId>hazelcast</artifactId>
+                    <groupId>com.hazelcast</groupId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.hazelcast</groupId>
+            <artifactId>hazelcast</artifactId>
+            <version>3.12.7</version>
         </dependency>
     </dependencies>
 

@@ -16,49 +16,183 @@
 
 package org.springframework.cloud.scheduler.spi.quartz;
 
-import java.util.List;
-import java.util.Map;
-
 import org.quartz.JobExecutionContext;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cloud.dataflow.server.service.TaskService;
+import org.springframework.cloud.deployer.spi.core.AppDefinition;
+import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
+import org.springframework.cloud.deployer.spi.task.TaskLauncher;
+import org.springframework.context.ApplicationContext;
+import org.springframework.core.io.Resource;
 import org.springframework.scheduling.quartz.QuartzJobBean;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
+import java.net.URL;
+import java.util.List;
+import java.util.Map;
 
 public class QuartsSchedulerJob extends QuartzJobBean {
 
-	private static final Logger logger = LoggerFactory.getLogger(QuartsSchedulerJob.class);
-
-	private TaskService taskService;
-
-	private String taskName;
-
-	private Map<String, String> taskDeploymentProperties;
-
-	private List<String> commandLineArgs;
-
 	@Autowired
-	public void setTaskService(TaskService taskService) {
-		this.taskService = taskService;
-	}
+	ApplicationContext applicationContext;
+
+	private static final Logger logger = LoggerFactory.getLogger(QuartsSchedulerJob.class);
+	private String taskName;
+	private String definitionName;
+	private Map definitionProperties;
+	private Map deploymentProperties;
+	private List commandlineArguments;
+	private String resourceDescription;
+	private String resourceFilename;
+	private File resourceFile;
+	private long resourceContentLength;
+	private boolean resourceExists;
+	private URI resourceURI;
+	private URL resourceURL;
+	private boolean resourceIsOpen;
+	private boolean resourceIsReadable;
+	private long resourceLastModified;
 
 	public void setTaskName(String taskName) {
 		this.taskName = taskName;
 	}
 
-	public void setTaskDeploymentProperties(Map<String, String> taskDeploymentProperties) {
-		this.taskDeploymentProperties = taskDeploymentProperties;
+	public void setDefinitionName(String definitionName) {
+		this.definitionName = definitionName;
 	}
 
-	public void setCommandLineArgs(List<String> commandLineArgs) {
-		this.commandLineArgs = commandLineArgs;
+	public void setDefinitionProperties(Map definitionProperties) {
+		this.definitionProperties = definitionProperties;
+	}
+
+	public void setDeploymentProperties(Map deploymentProperties) {
+		this.deploymentProperties = deploymentProperties;
+	}
+
+	public void setCommandlineArguments(List commandlineArguments) {
+		this.commandlineArguments = commandlineArguments;
+	}
+
+	public void setResourceDescription(String resourceDescription) {
+		this.resourceDescription = resourceDescription;
+	}
+
+	public void setResourceFilename(String resourceFilename) {
+		this.resourceFilename = resourceFilename;
+	}
+
+	public void setResourceFile(File resourceFile) {
+		this.resourceFile = resourceFile;
+	}
+
+	public void setResourceContentLength(long resourceContentLength) {
+		this.resourceContentLength = resourceContentLength;
+	}
+
+	public void setResourceExists(boolean resourceExists) {
+		this.resourceExists = resourceExists;
+	}
+
+	public void setResourceURI(URI resourceURI) {
+		this.resourceURI = resourceURI;
+	}
+
+	public void setResourceURL(URL resourceURL) {
+		this.resourceURL = resourceURL;
+	}
+
+	public void setResourceIsOpen(boolean resourceIsOpen) {
+		this.resourceIsOpen = resourceIsOpen;
+	}
+
+	public void setResourceIsReadable(boolean resourceIsReadable) {
+		this.resourceIsReadable = resourceIsReadable;
+	}
+
+	public void setResourceLastModified(long resourceLastModified) {
+		this.resourceLastModified = resourceLastModified;
 	}
 
 	@Override
 	protected void executeInternal(JobExecutionContext jobExecutionContext) {
 		logger.debug("launching scheduled quartz job {}", taskName);
-		taskService.executeTask(taskName, taskDeploymentProperties, commandLineArgs);
+
+		AppDefinition appDefinition = new AppDefinition(definitionName, definitionProperties);
+
+		Resource resource = new Resource() {
+			@Override
+			public boolean exists() {
+				return resourceExists;
+			}
+
+			@Override
+			public boolean isReadable() {
+				return resourceIsReadable;
+			}
+
+			@Override
+			public boolean isOpen() {
+				return resourceIsOpen;
+			}
+
+			@Override
+			public URL getURL() throws IOException {
+				return resourceURL;
+			}
+
+			@Override
+			public URI getURI() throws IOException {
+				return resourceURI;
+			}
+
+			@Override
+			public File getFile() throws IOException {
+				return resourceFile;
+			}
+
+			@Override
+			public long contentLength() throws IOException {
+				return resourceContentLength;
+			}
+
+			@Override
+			public long lastModified() throws IOException {
+				return resourceLastModified;
+			}
+
+			@Override
+			public Resource createRelative(String s) throws IOException {
+				return null;
+			}
+
+			@Override
+			public String getFilename() {
+				return resourceFilename;
+			}
+
+			@Override
+			public String getDescription() {
+				return resourceDescription;
+			}
+
+			@Override
+			public InputStream getInputStream() throws IOException {
+				return null;
+			}
+		};
+
+		AppDeploymentRequest appDeploymentRequest = new AppDeploymentRequest(
+				appDefinition,
+				resource,
+				deploymentProperties,
+				commandlineArguments);
+
+		applicationContext.getBean(TaskLauncher.class).launch(appDeploymentRequest);
 	}
 }
